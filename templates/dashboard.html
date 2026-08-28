@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Visão geral - Mercado Patrimônio{% endblock %}
+{% block content %}
+<div class="page-header dashboard-header">
+    <div class="page-heading">
+        <span class="eyebrow">Centro de comando de operações</span>
+        <h1>Visão geral</h1>
+        <p>Panorama dos patrimônios e do fluxo Vendas → Patrimônio → RH/Colaborador.</p>
+    </div>
+    <div class="date-chip"><i class="ti ti-calendar"></i><span>{{ agora }}</span></div>
+</div>
+
+<section class="integration-flow" aria-labelledby="flow-title">
+    <div class="sr-only" id="flow-title">Fluxo de integração</div>
+    <div class="flow-stage">
+        <span class="flow-icon"><i class="ti ti-shopping-cart"></i></span>
+        <span><strong>Vendas</strong><small>Origem dos dados</small><em><span class="status-dot"></span> Pronto para receber</em></span>
+    </div>
+    <i class="ti ti-arrow-right flow-arrow" aria-hidden="true"></i>
+    <div class="flow-stage featured">
+        <span class="flow-icon"><i class="ti ti-building-warehouse"></i></span>
+        <span><strong>Patrimônio</strong><small>Cadastro e controle</small><em><span class="status-dot"></span> Operacional</em></span>
+    </div>
+    <i class="ti ti-arrow-right flow-arrow" aria-hidden="true"></i>
+    <div class="flow-stage">
+        <span class="flow-icon"><i class="ti ti-user-cog"></i></span>
+        <span><strong>RH/Colaborador</strong><small>Destino das responsabilidades</small><em><span class="status-dot"></span> Saída disponível</em></span>
+    </div>
+</section>
+
+<div class="sync-bar">
+    <div class="sync-state">
+        <i class="ti {{ 'ti-circle-check' if ultima_integracao and not ultima_integracao.erros else 'ti-clock' }}"></i>
+        {% if ultima_integracao %}
+        <span><strong>Última integração: {{ ultima_integracao.data }}</strong><small>{{ ultima_integracao.arquivo }} · {{ ultima_integracao.inseridos }} novos, {{ ultima_integracao.atualizados }} atualizados</small></span>
+        {% else %}
+        <span><strong>Aguardando a primeira integração</strong><small>Importe o pacote de Vendas ou envie um evento pela API.</small></span>
+        {% endif %}
+    </div>
+    <a class="btn primary" href="{{ url_for('importacao') }}"><i class="ti ti-upload"></i> Importar venda</a>
+</div>
+
+<section class="metrics-strip" aria-label="Resumo dos patrimônios">
+    <div class="metric"><span>Total</span><strong>{{ total }}</strong><small>patrimônios cadastrados</small></div>
+    <div class="metric"><span>Ativos</span><strong>{{ ativos }}</strong><small>em utilização</small></div>
+    <div class="metric"><span>Em manutenção</span><strong>{{ manutencao }}</strong><small>aguardando serviço</small></div>
+    <div class="metric"><span>Pendentes</span><strong>{{ pendentes }}</strong><small>aguardando tombo/setor</small></div>
+    <div class="metric value-metric"><span>Valor total dos bens ativos</span><strong>R$ {{ "%.2f"|format(valor_total)|replace(".", ",") }}</strong><small>{{ baixados }} baixados fora do cálculo</small></div>
+</section>
+
+<div class="dashboard-columns">
+    <section class="surface table-section">
+        <div class="section-title">
+            <div><span class="section-kicker">Inventário</span><h2>Patrimônios recentes</h2></div>
+            <a href="{{ url_for('patrimonios') }}">Ver todos <i class="ti ti-arrow-right"></i></a>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Código</th><th>Patrimônio</th><th>Categoria</th><th>Setor</th><th>Status</th></tr></thead>
+                <tbody>
+                {% for item in recentes %}
+                    <tr>
+                        <td><strong class="code-link">{{ item.codigo }}</strong></td>
+                        <td><strong>{{ item.nome }}</strong><small class="block">{{ item.marca or '' }} {{ item.modelo or '' }}</small></td>
+                        <td>{{ item.categoria or '-' }}</td>
+                        <td>{{ item.setor or '-' }}</td>
+                        <td><span class="badge {{ item.status|lower }}">{{ item.status }}</span></td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="5"><div class="empty-state"><i class="ti ti-package-off"></i><strong>Nenhum patrimônio cadastrado</strong><span>Cadastre um bem ou importe dados de Vendas.</span></div></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="surface activity-section">
+        <div class="section-title">
+            <div><span class="section-kicker">Sistema</span><h2>Atividade de integração</h2></div>
+            <a href="{{ url_for('importacao') }}">Ver integrações <i class="ti ti-arrow-right"></i></a>
+        </div>
+        <div class="activity-list">
+            {% for item in atividades_integracao %}
+            <div class="activity-item">
+                <span class="activity-icon {{ item.status|lower }}"><i class="ti {{ 'ti-circle-check' if item.status == 'SUCESSO' else ('ti-alert-triangle' if item.status == 'ERRO' else 'ti-clock') }}"></i></span>
+                <span class="activity-copy"><strong>{{ item.operacao|replace('_', ' ')|title }}</strong><small>{{ item.sistema_origem }}{% if item.codigo_patrimonio %} · {{ item.codigo_patrimonio }}{% endif %}</small></span>
+                <time>{{ item.criado_em }}</time>
+            </div>
+            {% else %}
+            <div class="empty-state compact"><i class="ti ti-plug-connected-x"></i><strong>Nenhuma atividade ainda</strong><span>Os eventos aparecerão aqui.</span></div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}

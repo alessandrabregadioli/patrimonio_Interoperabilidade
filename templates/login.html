@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Patrimônio Mercado</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/tabler-icons.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-page">
+<main class="login-shell">
+    <section class="login-intro">
+        <div class="brand login-brand">
+            <span class="brand-icon">M</span>
+            <span class="brand-copy"><strong>Mercado</strong><span>Patrimônio</span></span>
+        </div>
+        <div>
+            <span class="eyebrow light">Gestão patrimonial integrada</span>
+            <h1>Do produto vendido à responsabilidade registrada.</h1>
+            <p>Controle bens, acompanhe garantias e conecte Vendas, Patrimônio e RH em um único fluxo.</p>
+        </div>
+        <div class="login-flow">
+            <span><i class="ti ti-shopping-cart"></i> Vendas</span><i class="ti ti-arrow-right"></i>
+            <span><i class="ti ti-building-warehouse"></i> Patrimônio</span><i class="ti ti-arrow-right"></i>
+            <span><i class="ti ti-user-cog"></i> RH</span>
+        </div>
+    </section>
+
+    <section class="login-card">
+        <span class="eyebrow">Acesso seguro</span>
+        <h2>Bem-vindo de volta</h2>
+        <p>Entre para acessar o painel de patrimônio.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for categoria, mensagem in messages %}
+                <div class="alert {{ categoria }}">{{ mensagem }}</div>
+            {% endfor %}
+        {% endwith %}
+
+        <form method="post">
+            <label for="email">E-mail</label>
+            <div class="input-with-icon"><i class="ti ti-mail"></i><input id="email" type="email" name="email" placeholder="Digite seu e-mail" required></div>
+
+            <label for="senha">Senha</label>
+            <div class="input-with-icon"><i class="ti ti-lock"></i><input id="senha" type="password" name="senha" placeholder="Digite sua senha" required></div>
+
+            <button type="submit" class="btn primary full">Entrar no sistema <i class="ti ti-arrow-right"></i></button>
+        </form>
+        <small>Ambiente acadêmico de integração entre sistemas</small>
+    </section>
+</main>
+</body>
+</html>

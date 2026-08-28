@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Ambientes virtuais
+venv/
+.venv/
+env/
+
+# Banco e arquivos de execução locais
+patrimonio.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Configuração e segredos
+.env
+.env.*
+!.env.example
+
+# IDE e sistema operacional
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temporários e entregas compactadas
+tmp/
+*.tmp
+*.log
+*_entrega.zip

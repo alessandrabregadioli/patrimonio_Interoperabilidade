@@ -1,0 +1,2 @@
+codigo;nome;descricao;marca;modelo;numero_serie;data_aquisicao;valor;status;categoria;setor;origem_sistema;produto_sku;external_id;unidade_origem
+PAT-EXT-001;Nobreak Administrativo;Nobreak de 1500 VA;Intelbras;XNB 1500;SN-NB-001;2026-08-27;1200,00;ATIVO;Equipamentos;Administrativo;Sistema de Compras;NB-001;COMPRA-2026-001;1

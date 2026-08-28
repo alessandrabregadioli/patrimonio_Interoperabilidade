@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Patrimônios - Mercado Patrimônio{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-heading"><span class="eyebrow">Inventário central</span><h1>Patrimônios</h1><p>Encontre, gerencie e acompanhe os bens da organização.</p></div>
+    <a class="btn primary" href="{{ url_for('patrimonio_novo') }}"><i class="ti ti-plus"></i> Novo patrimônio</a>
+</div>
+
+<section class="inventory-summary" aria-label="Resumo do inventário">
+    <div><span>Total</span><strong>{{ resumo.total or 0 }}</strong><small>patrimônios</small></div>
+    <div><span>Ativos</span><strong>{{ resumo.ativos or 0 }}</strong><small>em utilização</small></div>
+    <div><span>Manutenção</span><strong>{{ resumo.manutencao or 0 }}</strong><small>aguardando serviço</small></div>
+    <div class="summary-value"><span>Valor dos bens em uso</span><strong>R$ {{ "%.2f"|format(resumo.valor_total or 0)|replace(".", ",") }}</strong><small>exceto itens baixados</small></div>
+</section>
+
+<a class="integration-health" href="{{ url_for('importacao') }}">
+    <span class="health-title"><i class="ti ti-plug-connected"></i><span><strong>Integrações</strong><small>Situação do fluxo entre sistemas</small></span></span>
+    <span class="health-stage"><i class="ti ti-shopping-cart"></i><span><strong>Vendas</strong><small><span class="status-dot"></span> Pronto</small></span></span>
+    <i class="ti ti-minus health-line"></i>
+    <span class="health-stage"><i class="ti ti-building-warehouse"></i><span><strong>Patrimônio</strong><small><span class="status-dot"></span> Operacional</small></span></span>
+    <i class="ti ti-minus health-line"></i>
+    <span class="health-stage"><i class="ti ti-user-cog"></i><span><strong>RH/Colaborador</strong><small><span class="status-dot"></span> Disponível</small></span></span>
+    <span class="btn small ghost">Ver integrações <i class="ti ti-arrow-right"></i></span>
+</a>
+
+<section class="surface inventory-table">
+    <form class="inventory-toolbar" method="get">
+        <label class="search-field">
+            <i class="ti ti-search"></i>
+            <span class="sr-only">Buscar patrimônios</span>
+            <input name="busca" value="{{ busca }}" placeholder="Buscar por código, patrimônio, categoria, setor ou responsável...">
+        </label>
+        <label class="select-field">
+            <span class="sr-only">Filtrar por status</span>
+            <select name="status">
+                <option value="">Status: Todos</option>
+                {% for status in ['PENDENTE','ATIVO','VENDIDO','MANUTENCAO','DANIFICADO','BAIXADO'] %}
+                <option value="{{ status }}" {% if status_filtro == status %}selected{% endif %}>{{ status|replace('_',' ')|title }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="select-field">
+            <span class="sr-only">Filtrar por setor</span>
+            <select name="setor">
+                <option value="">Setor: Todos</option>
+                {% for setor in setores_filtro %}<option value="{{ setor.id }}" {% if setor_filtro == (setor.id ~ '') %}selected{% endif %}>{{ setor.nome }}</option>{% endfor %}
+            </select>
+        </label>
+        <button class="btn" type="submit"><i class="ti ti-filter"></i> Filtrar</button>
+        {% if busca or status_filtro or setor_filtro %}<a class="icon-button" href="{{ url_for('patrimonios') }}" title="Limpar filtros" aria-label="Limpar filtros"><i class="ti ti-refresh"></i></a>{% endif %}
+    </form>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr><th>Código</th><th>Patrimônio</th><th>Categoria</th><th>Setor</th><th>Responsável</th><th>Valor</th><th>Status</th><th><span class="sr-only">Ações</span></th></tr>
+            </thead>
+            <tbody>
+            {% for item in itens %}
+                <tr>
+                    <td><strong class="code-link">{{ item.codigo }}</strong><small class="block">{{ item.produto_sku or 'Sem SKU' }}</small></td>
+                    <td>
+                        <strong>{{ item.nome }}</strong>
+                        <small class="block">{{ item.marca or '' }} {{ item.modelo or '' }}</small>
+                    </td>
+                    <td>{{ item.categoria or '-' }}</td>
+                    <td>{{ item.setor or '-' }}</td>
+                    <td>{{ item.colaborador_nome or '-' }}<small class="block">{{ item.origem_sistema or 'Cadastro manual' }}</small></td>
+                    <td>R$ {{ "%.2f"|format(item.valor)|replace(".", ",") }}</td>
+                    <td><span class="badge {{ item.status|lower }}">{{ item.status }}</span></td>
+                    <td class="actions">
+                        <a class="icon-button" href="{{ url_for('patrimonio_editar', id=item.id) }}" title="Editar patrimônio" aria-label="Editar {{ item.codigo }}"><i class="ti ti-pencil"></i></a>
+                        {% if item.status != 'BAIXADO' %}
+                        <form method="post" action="{{ url_for('patrimonio_baixar', id=item.id) }}" onsubmit="return confirm('Deseja realmente dar baixa neste patrimônio?')">
+                            <button class="icon-button danger" title="Dar baixa" aria-label="Dar baixa em {{ item.codigo }}"><i class="ti ti-archive"></i></button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="8"><div class="empty-state"><i class="ti ti-search-off"></i><strong>Nenhum patrimônio encontrado</strong><span>Tente remover algum filtro ou cadastre um novo bem.</span></div></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <footer class="table-footer"><span>Exibindo {{ itens|length }} patrimônio{{ 's' if itens|length != 1 else '' }}</span><span>Dados atualizados pelo sistema</span></footer>
+</section>
+{% endblock %}

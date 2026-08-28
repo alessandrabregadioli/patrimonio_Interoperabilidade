@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Usuários{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Usuários</h1>
+        <p>Cadastro e gerenciamento de usuários do sistema.</p>
+    </div>
+</div>
+
+<div class="split">
+    <div class="card">
+        <h2>Novo usuário</h2>
+
+        <form method="post">
+            <label>Nome *</label>
+            <input
+                type="text"
+                name="nome"
+                placeholder="Nome do usuário"
+                required
+            >
+
+            <label>E-mail *</label>
+            <input
+                type="email"
+                name="email"
+                placeholder="usuario@mercado.com"
+                required
+            >
+
+            <label>Senha *</label>
+            <input
+                type="password"
+                name="senha"
+                placeholder="Digite uma senha"
+                required
+            >
+
+            <label>Perfil *</label>
+            <select name="perfil" required>
+                <option value="FUNCIONARIO">Funcionário</option>
+                <option value="ADMIN">Administrador</option>
+            </select>
+
+            <button class="btn primary" type="submit">
+                Cadastrar usuário
+            </button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Usuários cadastrados</h2>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>E-mail</th>
+                        <th>Perfil</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for usuario in itens %}
+                    <tr>
+                        <td>{{ usuario.nome }}</td>
+                        <td>{{ usuario.email }}</td>
+                        <td>
+                            <span class="badge">
+                                {{ 'Administrador' if usuario.perfil == 'ADMIN' else 'Funcionário' }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if usuario.id != session.get('usuario_id') %}
+                            <form
+                                method="post"
+                                action="{{ url_for('usuario_excluir', id=usuario.id) }}"
+                                onsubmit="return confirm('Deseja excluir este usuário?')"
+                            >
+                                <button class="btn danger small" type="submit">
+                                    Excluir
+                                </button>
+                            </form>
+                            {% else %}
+                                <small>Usuário atual</small>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="4">Nenhum usuário cadastrado.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

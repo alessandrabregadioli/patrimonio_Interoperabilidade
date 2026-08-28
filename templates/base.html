@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Patrimônio Mercado{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/tabler-icons.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+<header class="mobile-header">
+    <a class="brand compact" href="{{ url_for('dashboard') }}" aria-label="Mercado Patrimônio">
+        <span class="brand-icon">M</span>
+        <span class="brand-copy"><strong>Mercado</strong><span>Patrimônio</span></span>
+    </a>
+    <button class="icon-button sidebar-toggle" type="button" aria-label="Abrir menu" aria-expanded="false">
+        <i class="ti ti-menu-2" aria-hidden="true"></i>
+    </button>
+</header>
+<div class="layout">
+    <aside class="sidebar">
+        <a class="brand" href="{{ url_for('dashboard') }}" aria-label="Mercado Patrimônio">
+            <span class="brand-icon">M</span>
+            <span class="brand-copy">
+                <strong>Mercado</strong>
+                <span>Patrimônio</span>
+            </span>
+        </a>
+        <nav aria-label="Navegação principal">
+            <a class="{% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}"><i class="ti ti-layout-dashboard"></i><span>Visão geral</span></a>
+            <a class="{% if request.endpoint in ['patrimonios','patrimonio_novo','patrimonio_editar'] %}active{% endif %}" href="{{ url_for('patrimonios') }}"><i class="ti ti-package"></i><span>Patrimônios</span></a>
+            <a class="{% if request.endpoint == 'categorias' %}active{% endif %}" href="{{ url_for('categorias') }}"><i class="ti ti-category"></i><span>Categorias</span></a>
+            <a class="{% if request.endpoint == 'setores' %}active{% endif %}" href="{{ url_for('setores') }}"><i class="ti ti-building-community"></i><span>Setores</span></a>
+            <a class="{% if request.endpoint == 'movimentacoes' %}active{% endif %}" href="{{ url_for('movimentacoes') }}"><i class="ti ti-arrows-exchange"></i><span>Movimentações</span></a>
+            <a class="{% if request.endpoint in ['manutencoes','manutencao_concluir'] %}active{% endif %}" href="{{ url_for('manutencoes') }}"><i class="ti ti-tool"></i><span>Manutenções</span></a>
+            {% if session.get('usuario_perfil') == 'ADMIN' %}
+            <a class="{% if request.endpoint == 'importacao' %}active{% endif %}" href="{{ url_for('importacao') }}"><i class="ti ti-plug-connected"></i><span>Integrações</span></a>
+            <a class="{% if request.endpoint == 'usuarios' %}active{% endif %}" href="{{ url_for('usuarios') }}"><i class="ti ti-users"></i><span>Usuários</span></a>
+            {% endif %}
+        </nav>
+        <div class="sidebar-bottom">
+            <div class="user-summary">
+                <span class="avatar">{{ (session.get('usuario_nome') or 'U')[0]|upper }}</span>
+                <span><strong>{{ session.get('usuario_nome') }}</strong><small>{{ 'Administrador' if session.get('usuario_perfil') == 'ADMIN' else 'Funcionário' }}</small></span>
+            </div>
+            <a class="logout-link" href="{{ url_for('logout') }}"><i class="ti ti-logout"></i><span>Sair</span></a>
+        </div>
+    </aside>
+    <button class="sidebar-scrim" type="button" aria-label="Fechar menu"></button>
+
+    <main class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for categoria, mensagem in messages %}
+                <div class="alert {{ categoria }}">{{ mensagem }}</div>
+            {% endfor %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+</div>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

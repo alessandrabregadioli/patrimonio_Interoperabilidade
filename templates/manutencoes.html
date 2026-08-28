@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Manutenções{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div><h1>Manutenções</h1><p>Controle de manutenção dos equipamentos.</p></div>
+</div>
+
+<div class="card">
+    <h2>Registrar manutenção</h2>
+    <form method="post" class="form-grid">
+        <div>
+            <label>Patrimônio</label>
+            <select name="patrimonio_id" required>
+                {% for p in patrimonios %}<option value="{{ p.id }}">{{ p.codigo }} - {{ p.nome }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Data de início</label>
+            <input type="date" name="data_inicio">
+        </div>
+        <div class="span-2">
+            <label>Descrição do problema/serviço</label>
+            <textarea name="descricao" required rows="3"></textarea>
+        </div>
+        <div>
+            <label>Custo (R$)</label>
+            <input type="number" step="0.01" min="0" name="custo" value="0">
+        </div>
+        <div>
+            <label>Status</label>
+            <select name="status">
+                <option value="ABERTA">ABERTA</option>
+                <option value="EM_ANDAMENTO">EM ANDAMENTO</option>
+                <option value="CONCLUIDA">CONCLUÍDA</option>
+            </select>
+        </div>
+        <div class="span-2"><button class="btn primary">Registrar manutenção</button></div>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Histórico de manutenções</h2>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Patrimônio</th><th>Descrição</th><th>Início</th><th>Fim</th><th>Custo</th><th>Status</th><th>Ação</th></tr></thead>
+            <tbody>
+            {% for m in itens %}
+                <tr>
+                    <td><strong>{{ m.codigo }}</strong><br>{{ m.patrimonio }}</td>
+                    <td>{{ m.descricao }}</td>
+                    <td>{{ m.data_inicio }}</td>
+                    <td>{{ m.data_fim or '-' }}</td>
+                    <td>R$ {{ "%.2f"|format(m.custo)|replace(".", ",") }}</td>
+                    <td><span class="badge">{{ m.status }}</span></td>
+                    <td>
+                        {% if m.status != 'CONCLUIDA' %}
+                        <form method="post" action="{{ url_for('manutencao_concluir', id=m.id) }}">
+                            <button class="btn small">Concluir</button>
+                        </form>
+                        {% else %}-{% endif %}
+                    </td>
+                </tr>
+            {% else %}<tr><td colspan="7">Nenhuma manutenção registrada.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

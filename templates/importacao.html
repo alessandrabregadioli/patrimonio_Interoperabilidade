@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Integrações - Mercado Patrimônio{% endblock %}
+
+{% block content %}
+<div class="page-header integration-header">
+    <div class="page-heading">
+        <span class="eyebrow">Interoperabilidade</span>
+        <h1>Integrações</h1>
+        <p>Receba dados de Vendas, registre patrimônios e disponibilize as responsabilidades ao RH.</p>
+    </div>
+    <div class="date-chip"><i class="ti ti-calendar"></i><span>{{ agora }}</span></div>
+</div>
+
+<section class="integration-steps" aria-label="Etapas da integração">
+    <div class="integration-step active">
+        <span class="step-number">1</span><span class="step-icon"><i class="ti ti-download"></i></span>
+        <span><strong>Receber de Vendas</strong><small>Arquivo ou evento pela API</small></span>
+    </div>
+    <span class="step-connector"></span>
+    <div class="integration-step">
+        <span class="step-number">2</span><span class="step-icon"><i class="ti ti-building-warehouse"></i></span>
+        <span><strong>Registrar patrimônio</strong><small>Validar e gerar cada unidade</small></span>
+    </div>
+    <span class="step-connector"></span>
+    <div class="integration-step">
+        <span class="step-number">3</span><span class="step-icon"><i class="ti ti-user-cog"></i></span>
+        <span><strong>Disponibilizar ao RH</strong><small>Publicar a responsabilidade</small></span>
+    </div>
+</section>
+
+{% if resultado %}
+<section class="result-strip" aria-label="Resultado da importação">
+    <span><i class="ti {{ 'ti-circle-check' if resultado.erros == 0 else 'ti-alert-triangle' }}"></i><strong>{{ resultado.layout }}</strong><small>Layout identificado</small></span>
+    <span><strong>{{ resultado.total }}</strong><small>Lidos</small></span>
+    <span><strong>{{ resultado.inseridos }}</strong><small>Novos</small></span>
+    <span><strong>{{ resultado.atualizados }}</strong><small>Atualizados</small></span>
+    <span><strong>{{ resultado.ignorados }}</strong><small>Ignorados</small></span>
+    <span class="{{ 'has-error' if resultado.erros else '' }}"><strong>{{ resultado.erros }}</strong><small>Erros</small></span>
+</section>
+{% endif %}
+
+<div class="integration-workspace">
+    <section class="surface import-panel">
+        <div class="section-title">
+            <div><span class="section-kicker">Entrada por arquivo</span><h2>Importar arquivo ou evento</h2></div>
+            <a href="{{ url_for('modelo_importacao_csv') }}">Baixar modelo <i class="ti ti-download"></i></a>
+        </div>
+        <p class="help-text">Envie CSV, JSON ou o pacote ZIP completo de Vendas. O layout é reconhecido automaticamente.</p>
+
+        <form method="post" enctype="multipart/form-data" class="upload-form" data-upload-form>
+            <label class="drop-zone" for="arquivo-integracao" data-file-drop>
+                <input class="file-input" id="arquivo-integracao" type="file" name="arquivo" accept=".csv,.json,.zip" required data-file-input>
+                <span class="drop-icon"><i class="ti ti-file-upload"></i></span>
+                <strong>Arraste e solte o arquivo aqui</strong>
+                <span>ou clique para selecionar</span>
+                <small>Formatos aceitos: CSV, JSON ou ZIP · máximo de 10 MB</small>
+                <em data-file-name>Nenhum arquivo selecionado</em>
+            </label>
+            <button class="btn primary full" type="submit"><i class="ti ti-device-floppy"></i> Processar importação</button>
+        </form>
+        <p class="security-note"><i class="ti ti-shield-check"></i> Cada registro é validado de forma isolada e reenvios não criam duplicidade.</p>
+    </section>
+
+    <section class="surface api-panel">
+        <div class="api-heading">
+            <div><span class="section-kicker">Entrada e saída ao vivo</span><h2>Integração via API</h2></div>
+            <span class="online-status"><span class="status-dot"></span> Online</span>
+        </div>
+        <p class="help-text">Os outros sistemas podem trocar dados com o Patrimônio diretamente pela rede ou VPN.</p>
+
+        <div class="endpoint-list">
+            <div><span class="http-method post">POST</span><code>/api/integracao/vendas/patrimonios</code><small>Recebe vendas</small></div>
+            <div><span class="http-method get">GET</span><code>/api/patrimonios</code><small>Lista patrimônios</small></div>
+            <div><span class="http-method get">GET</span><code>/api/integracao/rh/responsabilidades</code><small>Entrega ao RH</small></div>
+        </div>
+
+        <div class="api-note"><i class="ti ti-info-circle"></i><span><strong>Endereço base</strong><small>Use http://IP_DA_VPN:5000 antes de cada rota.</small></span></div>
+    </section>
+</div>
+
+<div class="export-actions">
+    <a class="btn" href="{{ url_for('exportar_patrimonios_csv') }}"><i class="ti ti-file-export"></i> Exportar patrimônios</a>
+    <a class="btn" href="{{ url_for('exportar_rh_colaboradores_csv') }}"><i class="ti ti-user-share"></i> Enviar ao RH</a>
+    <a class="btn" href="{{ url_for('exportar_movimentacoes_csv') }}"><i class="ti ti-arrows-exchange"></i> Exportar movimentações</a>
+    <a class="btn" href="{{ url_for('exportar_logs_csv') }}"><i class="ti ti-list-details"></i> Exportar logs</a>
+</div>
+
+<section class="surface integration-history">
+    <div class="section-title">
+        <div><span class="section-kicker">Auditoria</span><h2>Últimas integrações</h2></div>
+        <span class="record-count">{{ historico|length }} registro{{ 's' if historico|length != 1 else '' }}</span>
+    </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr><th>Data e hora</th><th>Origem</th><th>Arquivo / evento</th><th>Formato</th><th>Novos</th><th>Atualizados</th><th>Ignorados</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+            {% for item in historico %}
+                <tr>
+                    <td>{{ item.data }}</td>
+                    <td><strong>Vendas / Integração</strong><small class="block">{{ item.usuario or 'Sistema' }}</small></td>
+                    <td>{{ item.arquivo }}</td>
+                    <td><code>{{ item.formato }}</code></td>
+                    <td>{{ item.inseridos }}</td>
+                    <td>{{ item.atualizados }}</td>
+                    <td>{{ item.ignorados }}</td>
+                    <td><span class="badge {{ 'danificado' if item.erros else 'ativo' }}"><i class="ti {{ 'ti-alert-triangle' if item.erros else 'ti-circle-check' }}"></i> {{ 'Com erros' if item.erros else 'Sucesso' }}</span></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="8"><div class="empty-state"><i class="ti ti-plug-connected-x"></i><strong>Nenhuma integração realizada</strong><span>Processe um arquivo ou envie uma venda pela API.</span></div></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<details class="surface formats-details">
+    <summary><span><i class="ti ti-file-code"></i> Ver formatos aceitos e layout dos campos</span><i class="ti ti-chevron-down"></i></summary>
+    <div class="formats-content">
+        <section>
+            <h3>Vendas → Patrimônio</h3>
+            <p class="help-text">Fluxo principal. Também aceita um ZIP com clientes, vendedores, produtos, pedidos e itens.</p>
+            <div class="fields-list">
+                <span><strong>venda_external_id *</strong></span><span>item_external_id</span><span><strong>produto_sku *</strong></span><span>produto_nome</span><span><strong>quantidade *</strong></span><span>valor_unitario</span><span>cliente_documento</span><span>cliente_nome</span><span>colaborador_external_id</span><span>colaborador_nome</span>
+            </div>
+        </section>
+        <section>
+            <h3>Produtos do Estoque</h3>
+            <div class="fields-list"><span><strong>id</strong></span><span><strong>sku</strong></span><span><strong>nome</strong></span><span>descricao</span><span><strong>quantidade</strong></span><span>preco</span></div>
+            <h3>Movimentações do Estoque</h3>
+            <div class="fields-list"><span><strong>produto_sku</strong></span><span><strong>tipo</strong></span><span><strong>quantidade</strong></span><span><strong>origem</strong></span><span>external_id</span><span>operacao</span><span>created_at</span></div>
+        </section>
+        <section class="format-example">
+            <h3>Exemplo JSON</h3>
+            <pre class="code-example">{
+  "venda_external_id": "VEN-2026-001",
+  "produto_sku": "SKU001",
+  "produto_nome": "Produto Exemplo",
+  "quantidade": 1,
+  "status_venda": "FATURADO"
+}</pre>
+        </section>
+    </div>
+</details>
+
+{% if resultado and resultado.mensagens_erros %}
+<section class="surface error-panel">
+    <h2><i class="ti ti-alert-triangle"></i> Registros que precisam de atenção</h2>
+    <ul class="error-list">{% for erro in resultado.mensagens_erros %}<li>{{ erro }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+{% endblock %}

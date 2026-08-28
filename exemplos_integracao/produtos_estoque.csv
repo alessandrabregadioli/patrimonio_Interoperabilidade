@@ -1,0 +1,3 @@
+id,sku,nome,descricao,quantidade,preco,estoque_minimo,created_at,updated_at
+PROD-EXT-001,NOTE-001,Notebook Dell,Notebook para uso administrativo,2,4500.00,0,2026-08-27T19:00:00-03:00,2026-08-27T19:00:00-03:00
+PROD-EXT-002,IMP-001,Impressora Laser,Impressora do setor financeiro,1,1800.00,0,2026-08-27T19:05:00-03:00,2026-08-27T19:05:00-03:00

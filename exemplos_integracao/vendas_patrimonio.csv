@@ -1,0 +1,2 @@
+venda_external_id,item_external_id,produto_sku,produto_nome,produto_descricao,quantidade,valor_unitario,data_venda,status_venda,cliente_documento,cliente_nome,colaborador_external_id,colaborador_nome,garantia_ate
+VENDA-2026-001,ITEM-001,NOTE-001,Notebook Dell,Notebook vendido com garantia,2,4500.00,2026-08-27,FATURADO,12345678000190,Cliente Exemplo Ltda,COL-001,Ana Souza,2027-08-27
