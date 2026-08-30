@@ -1,3 +1,4 @@
+import csv
 import io
 import tempfile
 import unittest
@@ -93,6 +94,21 @@ class SistemaPatrimonioSmokeTest(unittest.TestCase):
             responsabilidades[0]["tipo_responsabilidade"],
             "POS_VENDA_PATRIMONIO",
         )
+
+        exportacao_rh = self.client.get("/exportacao/rh_colaboradores.csv")
+        conteudo_rh = exportacao_rh.data.decode("utf-8-sig")
+        linhas_rh = list(csv.DictReader(io.StringIO(conteudo_rh), delimiter=";"))
+        self.assertEqual(len(linhas_rh), 2)
+        self.assertEqual(
+            list(linhas_rh[0].keys()),
+            [
+                "id_evento", "id_colaborador", "data_evento", "tipo_evento",
+                "descricao", "status_evento",
+            ],
+        )
+        self.assertEqual(linhas_rh[0]["id_colaborador"], "COL-01")
+        self.assertEqual(linhas_rh[0]["tipo_evento"], "ATENDIMENTO")
+        self.assertEqual(linhas_rh[0]["status_evento"], "CONCLUIDO")
 
     def test_exportacoes_csv(self):
         for rota in [

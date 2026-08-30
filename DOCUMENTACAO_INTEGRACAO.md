@@ -175,15 +175,25 @@ codigo,produto_sku,nome,descricao,marca,modelo,numero_serie,data_aquisicao,valor
 
 Esse arquivo pode ser consumido por Estoque, Compras, Financeiro ou RH, conforme o layout combinado entre os grupos.
 
-## 8. Patrimônio para RH/Colaborador
+## 8. SAC e Patrimônio para RH/Colaborador
 
-Arquivo: `patrimonio_para_rh.csv`.
+Arquivo: `sac_para_rh.csv`.
 
 ```csv
-external_id,patrimonio_codigo,venda_external_id,produto_sku,produto_nome,cliente_documento,cliente_nome,colaborador_external_id,colaborador_nome,tipo_responsabilidade,status,data_venda,garantia_ate,origem_sistema,criado_em
+id_evento;id_colaborador;data_evento;tipo_evento;descricao;status_evento
 ```
 
-O RH pode usar esse arquivo para registrar qual colaborador ficou responsável pelo atendimento, venda ou acompanhamento patrimonial. Os mesmos dados ficam disponíveis em JSON:
+Esse cabeçalho reproduz o modelo oficial fornecido pelo grupo do RH. Cada
+patrimônio originado de uma venda gera um evento de atendimento vinculado ao
+`colaborador_external_id` recebido de Vendas. A data é exportada em
+`DD/MM/AAAA`, o tipo é `ATENDIMENTO` e o status é `CONCLUIDO`.
+
+O campo `id_colaborador` recebe o `colaborador_external_id` enviado por Vendas.
+Esse identificador precisa ser o mesmo utilizado pelo RH; se os sistemas usam
+IDs diferentes, os grupos devem fornecer uma tabela de correspondência.
+
+Somente registros de Vendas com identificador de colaborador são exportados.
+Os dados detalhados continuam disponíveis em JSON como funcionalidade extra:
 
 ```text
 GET /api/integracao/rh/responsabilidades
@@ -224,7 +234,7 @@ Importar o mesmo produto novamente atualiza as unidades existentes. Importar nov
 3. Importar `vendas_pacote_exemplo.zip` ou `vendas_patrimonio.csv`.
 4. Conferir o produto vendido, cliente e colaborador na tela de patrimônios.
 5. Importar o mesmo arquivo novamente e comprovar que a quantidade não aumenta.
-6. Exportar `patrimonio_para_rh.csv`.
+6. Exportar `sac_para_rh.csv` no modelo oficial do RH.
 7. Consultar `/api/integracao/rh/responsabilidades`.
 8. Exportar patrimônios e logs.
 9. Apresentar `external_id`, operação, status e colaborador responsável.

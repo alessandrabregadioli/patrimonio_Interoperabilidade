@@ -24,6 +24,8 @@
 - Idempotência de arquivos e API sem duplicar registros.
 - Histórico resumido e log detalhado de sucesso, erro e evento ignorado.
 - Exportações de patrimônios, movimentações, RH e logs em UTF-8 com BOM.
+- Exportação `sac_para_rh.csv` ajustada ao modelo oficial do RH, com seis
+  campos, delimitador ponto e vírgula e datas em `DD/MM/AAAA`.
 
 ### Gestão patrimonial
 

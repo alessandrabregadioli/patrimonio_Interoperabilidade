@@ -195,12 +195,13 @@ O contrato completo está em
 | Rota | Finalidade |
 |---|---|
 | `GET /exportacao/patrimonios.csv` | Todos os patrimônios. |
-| `GET /exportacao/rh_colaboradores.csv` | Responsabilidades para o RH. |
+| `GET /exportacao/rh_colaboradores.csv` | Eventos de atendimento no modelo oficial do RH. |
 | `GET /exportacao/movimentacoes.csv` | Histórico de movimentações. |
 | `GET /exportacao/logs.csv` | Auditoria das integrações. |
 
-Os CSVs utilizam cabeçalho, delimitador vírgula e UTF-8 com BOM para abrir
-corretamente no Excel.
+Os CSVs utilizam cabeçalho e UTF-8 com BOM para abrir corretamente no Excel.
+As exportações gerais usam vírgula; `sac_para_rh.csv` usa ponto e vírgula para
+seguir o modelo oficial fornecido pelo grupo do RH.
 
 ## Como a duplicidade é evitada
 

@@ -1612,9 +1612,9 @@ def modelo_importacao_csv():
     )
 
 
-def resposta_csv(nome_arquivo, cabecalho, linhas):
+def resposta_csv(nome_arquivo, cabecalho, linhas, delimitador=","):
     saida = io.StringIO(newline="")
-    escritor = csv.writer(saida, delimiter=",", lineterminator="\n")
+    escritor = csv.writer(saida, delimiter=delimitador, lineterminator="\n")
     escritor.writerow(cabecalho)
     escritor.writerows(linhas)
     return Response(
@@ -1688,26 +1688,31 @@ def exportar_movimentacoes_csv():
 def exportar_rh_colaboradores_csv():
     conn = get_db()
     linhas = conn.execute("""
-        SELECT p.external_id, p.codigo, p.venda_external_id, p.produto_sku,
-               p.nome AS produto_nome, p.cliente_documento, p.cliente_nome,
-               p.colaborador_external_id, p.colaborador_nome,
-               'POS_VENDA_PATRIMONIO' AS tipo_responsabilidade,
-               p.status, p.data_venda, p.garantia_ate, p.origem_sistema,
-               p.criado_em
+        SELECT printf('SAC-%04d', p.id) AS id_evento,
+               p.colaborador_external_id AS id_colaborador,
+               COALESCE(
+                   strftime('%d/%m/%Y', p.data_venda),
+                   strftime('%d/%m/%Y', p.criado_em),
+                   ''
+               ) AS data_evento,
+               'ATENDIMENTO' AS tipo_evento,
+               'Atendimento vinculado ao colaborador responsável' AS descricao,
+               'CONCLUIDO' AS status_evento
         FROM patrimonios p
         WHERE p.origem_sistema='VENDAS'
+          AND p.colaborador_external_id IS NOT NULL
+          AND trim(p.colaborador_external_id) != ''
         ORDER BY p.id
     """).fetchall()
     conn.close()
     return resposta_csv(
-        "patrimonio_para_rh.csv",
+        "sac_para_rh.csv",
         [
-            "external_id", "patrimonio_codigo", "venda_external_id", "produto_sku",
-            "produto_nome", "cliente_documento", "cliente_nome",
-            "colaborador_external_id", "colaborador_nome", "tipo_responsabilidade",
-            "status", "data_venda", "garantia_ate", "origem_sistema", "criado_em",
+            "id_evento", "id_colaborador", "data_evento", "tipo_evento",
+            "descricao", "status_evento",
         ],
         ([linha[campo] for campo in linha.keys()] for linha in linhas),
+        delimitador=";",
     )
 
 
