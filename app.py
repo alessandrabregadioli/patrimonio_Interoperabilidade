@@ -1,9 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, Response, send_file
 import sqlite3
 from pathlib import Path
-from functools import wraps
+from functools import lru_cache, wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+from lxml import etree
+from socket_client import gateway_socket
 import csv
 import hashlib
 import io
@@ -14,9 +16,16 @@ import zipfile
 
 app = Flask(__name__)
 app.secret_key = "chave-academica-patrimonio-mercado"
+app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "patrimonio.db"
+XML_NAMESPACE = "urn:uniavan:patrimonio:v1"
+XML_NS = {"pat": XML_NAMESPACE}
+XML_XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
+XML_XSD_PATH = BASE_DIR / "integracao_xml" / "patrimonio-vendas-v1.xsd"
+XML_MODELO_PATH = BASE_DIR / "integracao_xml" / "modelo-vendas-patrimonio.xml"
+LIMITE_ARQUIVO_INTEGRACAO = 10 * 1024 * 1024
 
 
 def get_db():
@@ -1072,6 +1081,199 @@ def carregar_pacote_vendas(conteudo_bytes):
     return resultado
 
 
+@lru_cache(maxsize=1)
+def carregar_schema_xml_vendas():
+    """Carrega e compila o contrato XSD utilizado pela integração XML."""
+    try:
+        documento_xsd = etree.parse(str(XML_XSD_PATH))
+        return etree.XMLSchema(documento_xsd)
+    except (OSError, etree.XMLSyntaxError, etree.XMLSchemaParseError) as erro:
+        raise RuntimeError(f"não foi possível carregar o XSD: {erro}") from erro
+
+
+def validar_e_converter_xml_vendas(conteudo_bytes):
+    """Valida o XML pelo XSD e o converte ao layout interno de Vendas."""
+    if not conteudo_bytes:
+        raise ValueError("o arquivo XML está vazio")
+    if len(conteudo_bytes) > LIMITE_ARQUIVO_INTEGRACAO:
+        raise ValueError("o arquivo XML ultrapassa o limite de 10 MB")
+    if b"<!doctype" in conteudo_bytes.lower():
+        raise ValueError("DOCTYPE não é permitido em arquivos de integração")
+
+    parser = etree.XMLParser(
+        resolve_entities=False,
+        no_network=True,
+        load_dtd=False,
+        huge_tree=False,
+        remove_blank_text=True,
+    )
+    try:
+        raiz = etree.fromstring(conteudo_bytes, parser=parser)
+    except etree.XMLSyntaxError as erro:
+        raise ValueError(f"XML malformado: {erro.msg} (linha {erro.lineno})") from erro
+
+    schema = carregar_schema_xml_vendas()
+    try:
+        schema.assertValid(raiz)
+    except etree.DocumentInvalid as erro:
+        detalhe = schema.error_log.last_error
+        mensagem = (
+            f"linha {detalhe.line}: {detalhe.message}" if detalhe else str(erro)
+        )
+        raise ValueError(f"XML rejeitado pelo XSD — {mensagem}") from erro
+
+    cabecalho = raiz.find("pat:cabecalho", namespaces=XML_NS)
+    identificador_lote = cabecalho.findtext(
+        "pat:identificadorLote", namespaces=XML_NS
+    )
+    registros = []
+    for venda in raiz.findall("pat:vendas/pat:venda", namespaces=XML_NS):
+        cliente = venda.find("pat:cliente", namespaces=XML_NS)
+        colaborador = venda.find("pat:colaborador", namespaces=XML_NS)
+        for item in venda.findall("pat:itens/pat:item", namespaces=XML_NS):
+            produto = item.find("pat:produto", namespaces=XML_NS)
+            registros.append({
+                "venda_external_id": venda.get("id"),
+                "item_external_id": item.get("id"),
+                "produto_sku": produto.get("sku"),
+                "produto_nome": produto.findtext("pat:nome", namespaces=XML_NS),
+                "produto_descricao": produto.findtext(
+                    "pat:descricao", default="", namespaces=XML_NS
+                ),
+                "quantidade": item.findtext("pat:quantidade", namespaces=XML_NS),
+                "valor_unitario": item.findtext(
+                    "pat:valorUnitario", namespaces=XML_NS
+                ),
+                "data_venda": venda.findtext("pat:dataVenda", namespaces=XML_NS),
+                "status_venda": venda.findtext("pat:status", namespaces=XML_NS),
+                "cliente_documento": cliente.get("documento"),
+                "cliente_nome": cliente.findtext("pat:nome", namespaces=XML_NS),
+                "colaborador_external_id": colaborador.get("id"),
+                "colaborador_nome": colaborador.findtext(
+                    "pat:nome", namespaces=XML_NS
+                ),
+                "garantia_ate": item.findtext(
+                    "pat:garantiaAte", default="", namespaces=XML_NS
+                ),
+            })
+
+    if len(registros) > 1000:
+        raise ValueError("o XML possui mais de 1000 itens de venda")
+    return registros, identificador_lote
+
+
+def _identificador_xml(valor, prefixo):
+    texto = re.sub(r"[^A-Za-z0-9._-]", "-", str(valor or "").strip())
+    texto = texto.strip("-._")[:64]
+    if len(texto) < 2:
+        texto = f"{prefixo}-{texto or 'NA'}"
+    return texto[:64]
+
+
+def _sku_xml(valor):
+    texto = re.sub(r"[^A-Za-z0-9._/-]", "-", str(valor or "").strip())
+    return (texto.strip("-._/") or "SKU-NA")[:64]
+
+
+def _data_xml(valor, padrao=None):
+    texto = str(valor or "").strip()[:10]
+    try:
+        return datetime.strptime(texto, "%Y-%m-%d").strftime("%Y-%m-%d")
+    except ValueError:
+        return padrao or datetime.now().strftime("%Y-%m-%d")
+
+
+def gerar_xml_patrimonios_vendas(linhas):
+    """Gera uma saída XML válida agrupando unidades por venda e item."""
+    def qname(nome):
+        return etree.QName(XML_NAMESPACE, nome)
+
+    raiz = etree.Element(
+        qname("integracaoPatrimonio"),
+        nsmap={None: XML_NAMESPACE, "xsi": XML_XSI_NAMESPACE},
+        versao="1.0",
+    )
+    raiz.set(
+        etree.QName(XML_XSI_NAMESPACE, "schemaLocation"),
+        f"{XML_NAMESPACE} patrimonio-vendas-v1.xsd",
+    )
+    cabecalho = etree.SubElement(raiz, qname("cabecalho"))
+    agora = datetime.now()
+    etree.SubElement(cabecalho, qname("identificadorLote")).text = (
+        f"EXPORT-{agora.strftime('%Y%m%d-%H%M%S')}"
+    )
+    etree.SubElement(cabecalho, qname("sistemaOrigem")).text = "VENDAS"
+    etree.SubElement(cabecalho, qname("sistemaDestino")).text = "PATRIMONIO"
+    etree.SubElement(cabecalho, qname("dataGeracao")).text = agora.astimezone().isoformat(
+        timespec="seconds"
+    )
+    vendas_elemento = etree.SubElement(raiz, qname("vendas"))
+
+    vendas = {}
+    for linha in linhas:
+        venda_id = str(linha["venda_external_id"] or linha["external_id"] or linha["id"])
+        chave_item = str(linha["external_id"] or linha["produto_sku"] or linha["id"])
+        venda = vendas.setdefault(venda_id, {"linha": linha, "itens": {}})
+        item = venda["itens"].setdefault(chave_item, {"linha": linha, "quantidade": 0})
+        item["quantidade"] += 1
+
+    for venda_id, grupo in vendas.items():
+        linha_base = grupo["linha"]
+        venda_elemento = etree.SubElement(
+            vendas_elemento, qname("venda"), id=_identificador_xml(venda_id, "VEN")
+        )
+        etree.SubElement(venda_elemento, qname("dataVenda")).text = _data_xml(
+            linha_base["data_venda"], _data_xml(linha_base["criado_em"])
+        )
+        etree.SubElement(venda_elemento, qname("status")).text = "VENDIDO"
+        documento = re.sub(r"\D", "", str(linha_base["cliente_documento"] or ""))
+        if not 5 <= len(documento) <= 20:
+            documento = "00000"
+        cliente = etree.SubElement(venda_elemento, qname("cliente"), documento=documento)
+        etree.SubElement(cliente, qname("nome")).text = (
+            str(linha_base["cliente_nome"] or "Cliente não informado")[:150]
+        )
+        colaborador = etree.SubElement(
+            venda_elemento,
+            qname("colaborador"),
+            id=_identificador_xml(linha_base["colaborador_external_id"], "COL"),
+        )
+        etree.SubElement(colaborador, qname("nome")).text = (
+            str(linha_base["colaborador_nome"] or "Responsável não informado")[:150]
+        )
+        itens_elemento = etree.SubElement(venda_elemento, qname("itens"))
+        for chave_item, dados_item in grupo["itens"].items():
+            linha = dados_item["linha"]
+            item = etree.SubElement(
+                itens_elemento, qname("item"), id=_identificador_xml(chave_item, "ITEM")
+            )
+            produto = etree.SubElement(
+                item, qname("produto"), sku=_sku_xml(linha["produto_sku"])
+            )
+            etree.SubElement(produto, qname("nome")).text = str(
+                linha["nome"] or f"Produto {linha['produto_sku']}"
+            )[:150]
+            if linha["descricao"]:
+                etree.SubElement(produto, qname("descricao")).text = str(
+                    linha["descricao"]
+                )[:500]
+            etree.SubElement(item, qname("quantidade")).text = str(
+                dados_item["quantidade"]
+            )
+            valor = etree.SubElement(item, qname("valorUnitario"), moeda="BRL")
+            valor.text = f"{max(float(linha['valor'] or 0), 0):.2f}"
+            if linha["garantia_ate"]:
+                etree.SubElement(item, qname("garantiaAte")).text = _data_xml(
+                    linha["garantia_ate"]
+                )
+
+    conteudo = etree.tostring(
+        raiz, xml_declaration=True, encoding="UTF-8", pretty_print=True
+    )
+    carregar_schema_xml_vendas().assertValid(etree.fromstring(conteudo))
+    return conteudo
+
+
 def importar_produto_estoque(conn, linha, arquivo, usuario_id):
     dados = normalizar_registro(linha)
     sku = str(dados.get("sku") or "").strip()
@@ -1429,20 +1631,22 @@ def importacao():
         arquivo = request.files.get("arquivo")
 
         if not arquivo or not arquivo.filename:
-            flash("Selecione um arquivo CSV, JSON ou ZIP de Vendas.", "erro")
+            flash("Selecione um arquivo CSV, JSON, XML ou ZIP de Vendas.", "erro")
             conn.close()
             return redirect(url_for("importacao"))
 
         nome_arquivo = arquivo.filename
         extensao = Path(nome_arquivo).suffix.lower()
 
-        if extensao not in (".csv", ".json", ".zip"):
-            flash("Formato inválido. Utilize CSV, JSON ou ZIP de Vendas.", "erro")
+        if extensao not in (".csv", ".json", ".xml", ".zip"):
+            flash("Formato inválido. Utilize CSV, JSON, XML ou ZIP de Vendas.", "erro")
             conn.close()
             return redirect(url_for("importacao"))
 
         try:
             conteudo_bytes = arquivo.read()
+            if len(conteudo_bytes) > LIMITE_ARQUIVO_INTEGRACAO:
+                raise ValueError("o arquivo ultrapassa o limite de 10 MB")
 
             if extensao == ".csv":
                 linhas, fieldnames = ler_csv_bytes(conteudo_bytes)
@@ -1452,6 +1656,12 @@ def importacao():
                 linhas = carregar_pacote_vendas(conteudo_bytes)
                 layout = "VENDAS_PATRIMONIO"
                 formato = "ZIP/VENDAS_PATRIMONIO"
+            elif extensao == ".xml":
+                linhas, identificador_lote = validar_e_converter_xml_vendas(
+                    conteudo_bytes
+                )
+                layout = "VENDAS_PATRIMONIO"
+                formato = f"XML/XSD/VENDAS_PATRIMONIO ({identificador_lote})"
             else:
                 try:
                     conteudo = conteudo_bytes.decode("utf-8-sig")
@@ -1612,6 +1822,45 @@ def modelo_importacao_csv():
     )
 
 
+@app.get("/importacao/modelo.xml")
+@admin_required
+def modelo_importacao_xml():
+    return send_file(
+        XML_MODELO_PATH,
+        mimetype="application/xml",
+        as_attachment=True,
+        download_name="modelo-vendas-patrimonio.xml",
+    )
+
+
+@app.get("/importacao/esquema.xsd")
+@admin_required
+def esquema_importacao_xml():
+    return send_file(
+        XML_XSD_PATH,
+        mimetype="application/xml",
+        as_attachment=True,
+        download_name="patrimonio-vendas-v1.xsd",
+    )
+
+
+@app.get("/importacao/pacote-xml.zip")
+@admin_required
+def pacote_importacao_xml():
+    """Entrega o modelo XML e seu contrato XSD em um único download."""
+    memoria = io.BytesIO()
+    with zipfile.ZipFile(memoria, "w", compression=zipfile.ZIP_DEFLATED) as pacote:
+        pacote.writestr(XML_MODELO_PATH.name, XML_MODELO_PATH.read_bytes())
+        pacote.writestr(XML_XSD_PATH.name, XML_XSD_PATH.read_bytes())
+    memoria.seek(0)
+    return send_file(
+        memoria,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name="modelo-xml-e-xsd-patrimonio.zip",
+    )
+
+
 def resposta_csv(nome_arquivo, cabecalho, linhas, delimitador=","):
     saida = io.StringIO(newline="")
     escritor = csv.writer(saida, delimiter=delimitador, lineterminator="\n")
@@ -1654,6 +1903,37 @@ def exportar_patrimonios_csv():
             "garantia_ate", "criado_em",
         ],
         ([linha[campo] for campo in linha.keys()] for linha in linhas),
+    )
+
+
+def consultar_patrimonios_vendas_xml():
+    conn = get_db()
+    linhas = conn.execute("""
+        SELECT id, codigo, nome, descricao, valor, produto_sku, external_id,
+               unidade_origem, venda_external_id, cliente_documento,
+               cliente_nome, colaborador_external_id, colaborador_nome,
+               data_venda, garantia_ate, criado_em
+        FROM patrimonios
+        WHERE origem_sistema='VENDAS'
+        ORDER BY id
+    """).fetchall()
+    conn.close()
+    return linhas
+
+
+@app.get("/exportacao/patrimonios.xml")
+@admin_required
+def exportar_patrimonios_xml():
+    linhas = consultar_patrimonios_vendas_xml()
+    if not linhas:
+        flash("Ainda não existem patrimônios de Vendas para exportar em XML.", "erro")
+        return redirect(url_for("importacao"))
+    return Response(
+        gerar_xml_patrimonios_vendas(linhas),
+        mimetype="application/xml; charset=utf-8",
+        headers={
+            "Content-Disposition": "attachment; filename=patrimonios-vendas.xml"
+        },
     )
 
 
@@ -1716,6 +1996,38 @@ def exportar_rh_colaboradores_csv():
     )
 
 
+def gerar_csv_rh():
+    """Gera em memória o mesmo arquivo de responsabilidades disponibilizado ao RH."""
+    conn = get_db()
+    linhas = conn.execute("""
+        SELECT printf('SAC-%04d', p.id) AS id_evento,
+               p.colaborador_external_id AS id_colaborador,
+               COALESCE(
+                   strftime('%d/%m/%Y', p.data_venda),
+                   strftime('%d/%m/%Y', p.criado_em),
+                   ''
+               ) AS data_evento,
+               'ATENDIMENTO' AS tipo_evento,
+               'Atendimento vinculado ao colaborador responsável' AS descricao,
+               'CONCLUIDO' AS status_evento
+        FROM patrimonios p
+        WHERE p.origem_sistema='VENDAS'
+          AND p.colaborador_external_id IS NOT NULL
+          AND trim(p.colaborador_external_id) != ''
+        ORDER BY p.id
+    """).fetchall()
+    conn.close()
+    return resposta_csv(
+        "sac_para_rh.csv",
+        [
+            "id_evento", "id_colaborador", "data_evento", "tipo_evento",
+            "descricao", "status_evento",
+        ],
+        ([linha[campo] for campo in linha.keys()] for linha in linhas),
+        delimitador=";",
+    ).get_data()
+
+
 @app.get("/exportacao/logs.csv")
 @admin_required
 def exportar_logs_csv():
@@ -1739,6 +2051,166 @@ def exportar_logs_csv():
         ],
         ([linha[campo] for campo in linha.keys()] for linha in linhas),
     )
+
+
+@app.get("/comunicacao")
+@login_required
+def comunicacao():
+    return render_template("comunicacao.html")
+
+
+@app.post("/api/socket/conectar")
+@login_required
+def api_socket_conectar():
+    dados = request.get_json(silent=True) or {}
+    try:
+        estado = gateway_socket.iniciar(dados.get("nome", "patrimonio"))
+        return jsonify(estado), 202
+    except (ValueError, RuntimeError) as erro:
+        return jsonify({"erro": str(erro)}), 400
+
+
+@app.post("/api/socket/desconectar")
+@login_required
+def api_socket_desconectar():
+    return jsonify(gateway_socket.parar())
+
+
+@app.get("/api/socket/status")
+@login_required
+def api_socket_status():
+    cursor = request.args.get("desde", 0)
+    eventos, ultimo = gateway_socket.eventos_desde(cursor)
+    return jsonify({
+        **gateway_socket.status(),
+        "eventos": eventos,
+        "cursor": ultimo,
+        "arquivos": gateway_socket.listar_arquivos(),
+    })
+
+
+@app.post("/api/socket/mensagem")
+@login_required
+def api_socket_mensagem():
+    dados = request.get_json(silent=True) or {}
+    try:
+        gateway_socket.enviar_mensagem(
+            dados.get("mensagem"), dados.get("destino")
+        )
+        return jsonify({"mensagem": "Mensagem enviada."}), 200
+    except (ValueError, RuntimeError, OSError) as erro:
+        return jsonify({"erro": str(erro)}), 400
+
+
+@app.post("/api/socket/arquivo")
+@login_required
+def api_socket_arquivo():
+    arquivo = request.files.get("arquivo")
+    if not arquivo or not arquivo.filename:
+        return jsonify({"erro": "Selecione um arquivo para enviar."}), 400
+    conteudo = arquivo.read(gateway_socket.MAX_FILE_SIZE + 1)
+    if len(conteudo) > gateway_socket.MAX_FILE_SIZE:
+        return jsonify({"erro": "O arquivo ultrapassa o limite de 10 MB."}), 413
+    try:
+        gateway_socket.enviar_arquivo(
+            arquivo.filename, conteudo, request.form.get("destino")
+        )
+        return jsonify({"mensagem": f'Arquivo "{Path(arquivo.filename).name}" enviado.'})
+    except (ValueError, RuntimeError, OSError) as erro:
+        return jsonify({"erro": str(erro)}), 400
+
+
+@app.post("/api/socket/enviar-rh")
+@admin_required
+def api_socket_enviar_rh():
+    try:
+        dados = request.get_json(silent=True) or {}
+        destino = gateway_socket.validar_destino(dados.get("destino") or "rh")
+        conteudo = gerar_csv_rh()
+        gateway_socket.enviar_arquivo("sac_para_rh.csv", conteudo, destino)
+        return jsonify({
+            "mensagem": f"Arquivo sac_para_rh.csv enviado para #{destino}.",
+            "tamanho": len(conteudo),
+        })
+    except (ValueError, RuntimeError, OSError) as erro:
+        return jsonify({"erro": str(erro)}), 400
+
+
+@app.get("/api/socket/arquivo/<token>")
+@login_required
+def api_socket_baixar_arquivo(token):
+    caminho = gateway_socket.caminho_arquivo(token)
+    if not caminho or not caminho.is_file():
+        return jsonify({"erro": "Arquivo recebido não encontrado."}), 404
+    return send_file(caminho, as_attachment=True, download_name=caminho.name.split("_", 1)[-1])
+
+
+@app.post("/api/socket/arquivo/<token>/importar")
+@admin_required
+def api_socket_importar_xml(token):
+    caminho = gateway_socket.caminho_arquivo(token)
+    if not caminho or not caminho.is_file():
+        return jsonify({"erro": "Arquivo recebido não encontrado."}), 404
+    if caminho.suffix.lower() != ".xml":
+        return jsonify({"erro": "Somente arquivos XML podem ser importados como venda."}), 400
+
+    try:
+        linhas, identificador_lote = validar_e_converter_xml_vendas(caminho.read_bytes())
+        if not linhas:
+            raise ValueError("O XML não possui itens de venda.")
+        conn = get_db()
+        inseridos = atualizados = ignorados = 0
+        erros = []
+        usuario_id = session.get("usuario_id")
+        for numero, linha in enumerate(linhas, start=1):
+            conn.execute("SAVEPOINT registro_socket")
+            try:
+                resumo = importar_venda_patrimonio(
+                    conn, linha, caminho.name, usuario_id
+                )
+                inseridos += resumo["inseridos"]
+                atualizados += resumo["atualizados"]
+                ignorados += resumo["ignorados"]
+                conn.execute("RELEASE SAVEPOINT registro_socket")
+            except Exception as erro:
+                conn.execute("ROLLBACK TO SAVEPOINT registro_socket")
+                conn.execute("RELEASE SAVEPOINT registro_socket")
+                erros.append(f"Registro {numero}: {erro}")
+                registrar_log(
+                    conn,
+                    external_id=linha.get("item_external_id"),
+                    sistema_origem="VENDAS",
+                    arquivo=caminho.name,
+                    tipo_registro="VENDA",
+                    operacao="IMPORTAR_SOCKET_XML",
+                    status="ERRO",
+                    mensagem=f"Registro {numero}: {erro}",
+                    usuario_id=usuario_id,
+                )
+
+        conn.execute("""
+            INSERT INTO importacoes
+            (arquivo, formato, total, inseridos, atualizados, ignorados, erros, data, usuario_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            caminho.name,
+            f"SOCKET/XML/XSD/VENDAS ({identificador_lote})",
+            len(linhas), inseridos, atualizados, ignorados, len(erros),
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"), usuario_id,
+        ))
+        conn.commit()
+        conn.close()
+        return jsonify({
+            "mensagem": "XML validado pelo XSD e processado.",
+            "lote": identificador_lote,
+            "total": len(linhas),
+            "inseridos": inseridos,
+            "atualizados": atualizados,
+            "ignorados": ignorados,
+            "erros": erros[:8],
+        })
+    except Exception as erro:
+        return jsonify({"erro": str(erro)}), 422
 
 
 
@@ -1823,6 +2295,71 @@ def api_receber_patrimonios_vendas():
         conn.close()
 
     processados = resumo_total["inseridos"] + resumo_total["atualizados"] + resumo_total["ignorados"]
+    if resumo_total["erros"] and not processados:
+        status_http = 422
+    elif resumo_total["erros"]:
+        status_http = 207
+    elif resumo_total["inseridos"]:
+        status_http = 201
+    else:
+        status_http = 200
+    return jsonify(resumo_total), status_http
+
+
+@app.route("/api/integracao/vendas/patrimonios.xml", methods=["GET", "POST"])
+def api_integracao_vendas_xml():
+    if request.method == "GET":
+        linhas = consultar_patrimonios_vendas_xml()
+        if not linhas:
+            return jsonify({"erro": "Não existem patrimônios de Vendas para exportar."}), 404
+        return Response(
+            gerar_xml_patrimonios_vendas(linhas),
+            mimetype="application/xml; charset=utf-8",
+        )
+
+    if not request.data:
+        return jsonify({"erro": "Envie o XML no corpo da requisição."}), 400
+    try:
+        registros, identificador_lote = validar_e_converter_xml_vendas(request.data)
+    except ValueError as erro:
+        return jsonify({"erro": str(erro), "valido_xsd": False}), 422
+
+    conn = get_db()
+    resumo_total = {
+        "lote": identificador_lote,
+        "valido_xsd": True,
+        "total": len(registros),
+        "inseridos": 0,
+        "atualizados": 0,
+        "ignorados": 0,
+        "erros": [],
+    }
+    try:
+        for numero, registro in enumerate(registros, start=1):
+            conn.execute("SAVEPOINT registro_api_xml")
+            try:
+                resumo = importar_venda_patrimonio(
+                    conn,
+                    registro,
+                    f"API XML ({identificador_lote})",
+                    None,
+                )
+                for campo in ("inseridos", "atualizados", "ignorados"):
+                    resumo_total[campo] += resumo[campo]
+                conn.execute("RELEASE SAVEPOINT registro_api_xml")
+            except Exception as erro:
+                conn.execute("ROLLBACK TO SAVEPOINT registro_api_xml")
+                conn.execute("RELEASE SAVEPOINT registro_api_xml")
+                resumo_total["erros"].append(
+                    {"registro": numero, "mensagem": str(erro)}
+                )
+        conn.commit()
+    finally:
+        conn.close()
+
+    processados = sum(
+        resumo_total[campo] for campo in ("inseridos", "atualizados", "ignorados")
+    )
     if resumo_total["erros"] and not processados:
         status_http = 422
     elif resumo_total["erros"]:

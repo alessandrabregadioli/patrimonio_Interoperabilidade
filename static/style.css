@@ -343,6 +343,67 @@ td strong{font-weight:750}
 .error-list{margin:0;padding-left:20px;color:var(--red)}
 .error-list li{margin-bottom:6px}
 
+/* Chat e transferência por socket */
+.communication-header{align-items:flex-end}
+.socket-status{display:inline-flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--muted-strong);font-size:12px;white-space:nowrap}
+.socket-status-dot{width:9px;height:9px;border-radius:50%;background:#98a39b}
+.socket-status[data-state="conectado"]{border-color:#b8dfc5;background:#f1faf3;color:var(--green-strong)}
+.socket-status[data-state="conectado"] .socket-status-dot{background:#139352;box-shadow:0 0 0 4px rgba(19,147,82,.12)}
+.socket-status[data-state="conectando"] .socket-status-dot,.socket-status[data-state="reconectando"] .socket-status-dot{background:#d19a1c;box-shadow:0 0 0 4px rgba(209,154,28,.13)}
+.socket-connect-panel{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:18px 20px}
+.socket-connect-copy strong,.socket-connect-copy small{display:block}
+.socket-connect-copy strong{font-size:16px}
+.socket-connect-copy small{margin-top:4px;color:var(--muted);font-size:11px}
+.socket-connect-controls{display:grid;grid-template-columns:minmax(145px,200px) auto auto;align-items:end;gap:8px}
+.socket-connect-controls label{grid-column:1/-1;margin:0 0 -4px}
+.socket-connect-controls input{margin:0}
+.communication-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(340px,.85fr);align-items:start;gap:16px}
+.communication-grid .surface{margin:0}
+.chat-panel{padding:18px;min-width:0}
+.chat-panel .section-title{align-items:center;margin-bottom:12px}
+.chat-panel .section-title h2,.file-send-panel h2,.received-panel h2{margin:0}
+.chat-hint,.socket-muted{color:var(--muted);font-size:10px}
+.chat-log{height:430px;padding:14px;display:flex;flex-direction:column;gap:10px;overflow:auto;border:1px solid var(--line);border-radius:9px;background:#f8faf8}
+.chat-empty,.received-empty{min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:var(--muted);text-align:center;font-size:11px}
+.chat-empty .ti{font-size:27px;color:#94a69a}
+.chat-empty strong{color:var(--ink);font-size:12px}
+.chat-message{max-width:88%;align-self:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px 10px 10px 3px;background:#fff;box-shadow:0 3px 10px rgba(18,48,33,.04);overflow-wrap:anywhere}
+.chat-message.outgoing{align-self:flex-end;border-color:#cde6d4;border-radius:10px 10px 3px 10px;background:#edf8f0}
+.chat-message.chat-error{border-color:#f1cfcc;background:#fff3f2}
+.chat-message-meta{display:flex;align-items:center;justify-content:space-between;gap:18px;color:var(--muted);font-size:9px}
+.chat-message-meta strong{color:var(--green-strong);font-size:10px}
+.chat-message p{margin-top:4px;color:var(--ink);font-size:12px;white-space:pre-wrap}
+.chat-compose{display:flex;align-items:flex-end;gap:9px;margin-top:12px}
+.chat-compose-fields{flex:1;min-width:0}
+.chat-compose-fields input{min-height:38px;margin-bottom:7px;font-size:11px}
+.chat-compose-fields textarea{min-height:62px;margin:0;resize:vertical;font-size:12px}
+.chat-compose>.btn{min-height:62px}
+.socket-feedback{min-height:18px;margin-top:8px;color:var(--green-strong);font-size:11px}
+.socket-feedback.is-error{color:var(--red)}
+.communication-side{display:grid;gap:16px}
+.file-send-panel,.received-panel{padding:18px}
+.file-send-panel h2{margin-bottom:7px}
+.file-send-panel .help-text{margin-bottom:12px}
+.file-send-panel form>input{margin-bottom:10px}
+.file-picker{min-height:58px;margin:0 0 10px;padding:10px 12px;display:flex;align-items:center;gap:10px;border:1px dashed #9bb4a1;border-radius:8px;background:#fbfdfb;color:var(--green-strong);cursor:pointer}
+.file-picker:hover{border-color:var(--green);background:#f2f8f3}
+.file-picker>.ti{font-size:21px}
+.file-picker input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.send-rh-button{margin-top:9px}
+.socket-muted{display:block;margin-top:7px;text-align:center}
+.received-panel .section-title{align-items:center;margin-bottom:10px}
+.received-files{display:grid;gap:8px}
+.received-empty{min-height:90px}
+.received-file{display:grid;grid-template-columns:36px minmax(0,1fr);align-items:center;gap:9px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fbfcfb}
+.received-file-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:8px;background:var(--surface-sage);color:var(--green);font-size:19px}
+.received-file-copy{min-width:0}
+.received-file-copy strong,.received-file-copy small{display:block;overflow-wrap:anywhere}
+.received-file-copy strong{font-size:11px}
+.received-file-copy small{margin-top:2px;color:var(--muted);font-size:9px}
+.received-file-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+.received-file-actions .btn{min-height:30px;padding:5px 8px;font-size:10px}
+.received-panel .security-note{margin-top:12px;line-height:1.5}
+
 /* Login */
 .login-page{min-height:100vh;background:#f4f6f2}
 .login-shell{min-height:100vh;display:grid;grid-template-columns:minmax(420px,1.05fr) minmax(400px,.95fr)}
@@ -373,6 +434,7 @@ td strong{font-weight:750}
     .inventory-toolbar{grid-template-columns:minmax(250px,1fr) 150px 150px auto auto}
     .integration-workspace{grid-template-columns:1fr}
     .integration-workspace .surface{min-height:auto}
+    .communication-grid{grid-template-columns:1fr}
 }
 
 @media (max-width:900px){
@@ -402,6 +464,11 @@ td strong{font-weight:750}
     .integration-steps{grid-template-columns:1fr;gap:10px}
     .step-connector{width:1px;height:18px;margin-left:16px}
     .formats-content{grid-template-columns:1fr}
+    .socket-connect-panel{align-items:stretch;flex-direction:column}
+    .socket-connect-controls{grid-template-columns:1fr 1fr}
+    .socket-connect-controls label{grid-column:1/-1}
+    .socket-connect-controls input{grid-column:1/-1}
+    .chat-log{height:360px}
     .format-example{grid-column:auto}
     .split{grid-template-columns:1fr}
     .login-shell{grid-template-columns:1fr}
@@ -413,6 +480,7 @@ td strong{font-weight:750}
 @media (max-width:620px){
     .content{padding:24px 14px 36px}
     .page-header{flex-direction:column;margin-bottom:22px}
+    .communication-header{align-items:flex-start}
     .date-chip{font-size:11px}
     h1{font-size:29px}
     .integration-flow{grid-template-columns:1fr;gap:5px}
@@ -447,4 +515,7 @@ td strong{font-weight:750}
     .login-flow{align-items:flex-start;flex-direction:column}
     .login-flow>i{transform:rotate(90deg);margin-left:4px}
     .login-card{width:calc(100% - 28px);padding:26px 20px}
+    .chat-compose{align-items:stretch;flex-direction:column}
+    .chat-compose>.btn{min-height:42px}
+    .chat-hint{max-width:105px;text-align:right}
 }

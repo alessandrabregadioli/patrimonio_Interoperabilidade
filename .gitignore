@@ -14,9 +14,22 @@ env/
 
 # Banco e arquivos de execução locais
 patrimonio.db
+patrimonio-antes-do-video.db
+socket_recebidos/
 *.db-journal
 *.db-shm
 *.db-wal
+
+# Artefatos locais da automação da apresentação
+automacao_video/arquivos/
+automacao_video/config.local.json
+package.json
+package-lock.json
+node_modules/
+
+# Arquivos gerados nas demonstrações e entregas locais
+sac_para_rh.csv
+codigo_fonte_patrimonio_socket.zip
 
 # Configuração e segredos
 .env

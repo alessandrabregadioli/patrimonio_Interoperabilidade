@@ -35,9 +35,10 @@ ou CSV.
 - Cadastro de categorias, setores e usuários.
 - Movimentação de patrimônios entre setores.
 - Registro e conclusão de manutenções.
-- Importação de CSV, JSON e pacote ZIP de Vendas.
+- Importação de XML validado por XSD, CSV, JSON e pacote ZIP de Vendas.
 - Importação de produtos e movimentações do Estoque.
-- Entrada ao vivo de vendas por API JSON.
+- Entrada ao vivo de vendas por API JSON ou XML.
+- Contrato XML v1.0 com namespace, tipos simples e complexos e exportação válida.
 - Exportações de patrimônios, movimentações, responsabilidades para RH e logs.
 - Idempotência: reenviar o mesmo evento atualiza o registro e não duplica bens.
 - Layout responsivo, fonte e ícones armazenados no próprio projeto.
@@ -53,6 +54,7 @@ ou CSV.
 - Python 3.10 ou superior.
 - Flask 3.1.1.
 - SQLite 3.
+- lxml 6.1.1 para validação XSD e processamento XML seguro.
 - HTML/Jinja, CSS e JavaScript sem framework frontend.
 - Manrope Variable, hospedada localmente sob OFL-1.1.
 - Tabler Icons Webfont, hospedado localmente sob licença MIT.
@@ -190,6 +192,44 @@ Arquivos prontos para demonstração estão em [`exemplos_integracao/`](exemplos
 O contrato completo está em
 [`DOCUMENTACAO_INTEGRACAO.md`](DOCUMENTACAO_INTEGRACAO.md).
 
+## Chat e transferência por socket
+
+No menu **Chat e arquivos**, o Patrimônio conecta-se como cliente ao servidor
+`electronicsystems.com.br:5000`. O nome padrão enviado ao servidor é
+`patrimonio`; ele pode ser ajustado para o nome acordado com a turma. A tela
+permite trocar mensagens para um sistema pelo nome/ID ou fazer broadcast com o
+campo de destino vazio, enviar arquivos de até 10 MB em blocos de 4096 bytes e
+receber mensagens e arquivos.
+
+Arquivos recebidos ficam em `socket_recebidos/`. Um XML recebido pode ser
+baixado ou validado pelo contrato XSD e importado explicitamente pela tela. A
+opção **Gerar e enviar arquivo do RH** transmite `sac_para_rh.csv` ao destinatário
+informado (por padrão, `rh`). O cliente mantém a conexão em segundo plano e
+tenta reconectar se ela cair. A tela consulta o backend periodicamente para
+mostrar mensagens e estado da conexão.
+
+O protocolo segue a documentação de envio de arquivos por socket fornecida pela
+turma: cabeçalho UTF-8, bytes do bloco e marcador final com tamanho zero.
+
+## Roteiro automatizado para o vídeo
+
+A pasta [`automacao_video/`](automacao_video/) contém um navegador automatizado
+para percorrer Estoque, Compras, Financeiro, Vendas, Marketing, Patrimônio e RH.
+Há dois modos:
+
+```powershell
+# Somente abre e apresenta as telas, sem alterar dados
+.\automacao_video\ensaiar_video.bat
+
+# Baixa e importa os arquivos compatíveis durante a gravação
+.\automacao_video\gravar_video.bat
+```
+
+As senhas são solicitadas no terminal e não ficam gravadas. Consulte
+[`MAPA_INTEGRACOES_VERIFICADO.md`](MAPA_INTEGRACOES_VERIFICADO.md) para conhecer
+os contratos observados nas interfaces e as ligações que ainda dependem de
+ajuste entre os grupos.
+
 ## Exportações
 
 | Rota | Finalidade |
@@ -227,6 +267,8 @@ mesmo conteúdo for enviado novamente, as unidades existentes são atualizadas.
 │   ├── app.js                     # Menu móvel e upload por arrastar/soltar
 │   └── vendor/                    # Fonte, ícones e respectivas licenças
 ├── exemplos_integracao/           # CSVs e ZIP para testes
+├── integracao_xml/                # Modelo XML, XSD formal e instruções
+├── DOCUMENTO_TECNICO_INTEGRACAO_XML.md
 ├── DOCUMENTACAO_INTEGRACAO.md     # Contratos entre os grupos
 ├── ARQUITETURA.md                 # Decisões técnicas e fluxo interno
 ├── CHANGELOG.md                   # Histórico do trabalho realizado
@@ -249,11 +291,29 @@ python -m unittest discover -s tests -v
 - Exportação para RH e demais CSVs em UTF-8 com BOM.
 - Renderização autenticada das dez rotas HTML principais.
 - APIs de Patrimônio e RH respondendo normalmente.
+- XML completo validado pelo XSD, importado e exportado pela API.
+- XML com valor fora da enumeração rejeitado antes de gravar dados.
 - Filtro de patrimônios e menu responsivo funcionando no navegador.
 - Verificação visual em 1440 × 1024 e 390 × 844.
 - Console do navegador sem erros ou avisos.
 
 O relatório visual completo está em [`design-qa.md`](design-qa.md).
+
+## Integração XML validada
+
+O contrato está em `integracao_xml/patrimonio-vendas-v1.xsd` e o exemplo
+completo em `integracao_xml/modelo-vendas-patrimonio.xml`. Na tela de
+Integrações, ambos podem ser baixados e o XML pode ser importado diretamente.
+
+```text
+POST /api/integracao/vendas/patrimonios.xml
+GET  /api/integracao/vendas/patrimonios.xml
+```
+
+O POST exige `Content-Type: application/xml`. O documento passa por validação
+de boa formação e pelo XSD antes de alcançar a regra de negócio. O relatório
+com a estrutura, os tipos, a comparação CSV versus XML e a análise de
+acoplamento está em `DOCUMENTO_TECNICO_INTEGRACAO_XML.md`.
 
 ## Observação de segurança
 

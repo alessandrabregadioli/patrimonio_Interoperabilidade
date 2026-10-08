@@ -2,9 +2,11 @@ import csv
 import io
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 import app as application
+from lxml import etree
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -121,6 +123,71 @@ class SistemaPatrimonioSmokeTest(unittest.TestCase):
                 resposta = self.client.get(rota)
                 self.assertEqual(resposta.status_code, 200)
                 self.assertTrue(resposta.data.startswith(b"\xef\xbb\xbf"))
+
+    def test_xml_xsd_importacao_api_e_exportacao(self):
+        caminho_xml = (
+            PROJECT_ROOT / "integracao_xml" / "modelo-vendas-patrimonio.xml"
+        )
+        caminho_xsd = PROJECT_ROOT / "integracao_xml" / "patrimonio-vendas-v1.xsd"
+        schema = etree.XMLSchema(etree.parse(str(caminho_xsd)))
+        self.assertTrue(schema.validate(etree.parse(str(caminho_xml))))
+
+        primeira = self.importar(caminho_xml)
+        self.assertEqual(primeira.status_code, 200)
+        vendas = self.client.get("/api/integracao/vendas/patrimonios").get_json()
+        self.assertEqual(len(vendas), 3)
+
+        segunda = self.client.post(
+            "/api/integracao/vendas/patrimonios.xml",
+            data=caminho_xml.read_bytes(),
+            content_type="application/xml",
+        )
+        self.assertEqual(segunda.status_code, 200)
+        self.assertTrue(segunda.get_json()["valido_xsd"])
+        self.assertEqual(segunda.get_json()["atualizados"], 3)
+
+        exportacao = self.client.get("/api/integracao/vendas/patrimonios.xml")
+        self.assertEqual(exportacao.status_code, 200)
+        self.assertEqual(exportacao.mimetype, "application/xml")
+        self.assertTrue(schema.validate(etree.fromstring(exportacao.data)))
+
+        for rota, nome in [
+            ("/importacao/modelo.xml", "modelo-vendas-patrimonio.xml"),
+            ("/importacao/esquema.xsd", "patrimonio-vendas-v1.xsd"),
+        ]:
+            with self.subTest(rota=rota):
+                resposta = self.client.get(rota)
+                self.assertEqual(resposta.status_code, 200)
+                self.assertIn("attachment", resposta.headers["Content-Disposition"])
+                self.assertIn(nome, resposta.headers["Content-Disposition"])
+                resposta.close()
+
+        pacote_resposta = self.client.get("/importacao/pacote-xml.zip")
+        self.assertEqual(pacote_resposta.status_code, 200)
+        self.assertIn("attachment", pacote_resposta.headers["Content-Disposition"])
+        with zipfile.ZipFile(io.BytesIO(pacote_resposta.data)) as pacote:
+            self.assertEqual(
+                set(pacote.namelist()),
+                {"modelo-vendas-patrimonio.xml", "patrimonio-vendas-v1.xsd"},
+            )
+        pacote_resposta.close()
+
+    def test_xml_invalido_e_rejeitado_antes_de_gravar(self):
+        caminho_xml = (
+            PROJECT_ROOT / "integracao_xml" / "modelo-vendas-patrimonio.xml"
+        )
+        xml_invalido = caminho_xml.read_bytes().replace(
+            b"<status>FATURADO</status>", b"<status>PENDENTE</status>"
+        )
+        resposta = self.client.post(
+            "/api/integracao/vendas/patrimonios.xml",
+            data=xml_invalido,
+            content_type="application/xml",
+        )
+        self.assertEqual(resposta.status_code, 422)
+        self.assertFalse(resposta.get_json()["valido_xsd"])
+        vendas = self.client.get("/api/integracao/vendas/patrimonios").get_json()
+        self.assertEqual(vendas, [])
 
 
 if __name__ == "__main__":

@@ -1,5 +1,19 @@
 # Histórico do projeto
 
+## Integração XML formal — setembro de 2026
+
+- Contrato XML v1.0 com namespace próprio e modelo completo.
+- XSD formal com tipos simples, tipos complexos, hierarquia e cardinalidades.
+- Importação XML pela interface com validação integral antes da persistência.
+- API XML de entrada e saída em `/api/integracao/vendas/patrimonios.xml`.
+- Download do modelo, do XSD e da exportação XML pela central de integrações.
+- Parser protegido contra DTD, entidades externas e acesso à rede.
+- Limites de 10 MB e 1000 itens por lote.
+- Testes de XML válido, idempotência, exportação válida e rejeição de XML
+  incompatível com o XSD.
+- Documento técnico com justificativas, comparação CSV versus XML e análise de
+  acoplamento.
+
 ## Versão integrada e redesenhada — agosto de 2026
 
 ### Recuperação do sistema herdado

@@ -37,6 +37,7 @@
             <a class="{% if request.endpoint == 'importacao' %}active{% endif %}" href="{{ url_for('importacao') }}"><i class="ti ti-plug-connected"></i><span>Integrações</span></a>
             <a class="{% if request.endpoint == 'usuarios' %}active{% endif %}" href="{{ url_for('usuarios') }}"><i class="ti ti-users"></i><span>Usuários</span></a>
             {% endif %}
+            <a class="{% if request.endpoint == 'comunicacao' %}active{% endif %}" href="{{ url_for('comunicacao') }}"><i class="ti ti-message-circle"></i><span>Chat e arquivos</span></a>
         </nav>
         <div class="sidebar-bottom">
             <div class="user-summary">

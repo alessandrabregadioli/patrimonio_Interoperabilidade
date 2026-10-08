@@ -43,17 +43,23 @@
     <section class="surface import-panel">
         <div class="section-title">
             <div><span class="section-kicker">Entrada por arquivo</span><h2>Importar arquivo ou evento</h2></div>
-            <a href="{{ url_for('modelo_importacao_csv') }}">Baixar modelo <i class="ti ti-download"></i></a>
+            <span>
+                <a href="{{ url_for('pacote_importacao_xml') }}"><strong>Baixar XML + XSD</strong> <i class="ti ti-download"></i></a>
+                &nbsp;·&nbsp;
+                <a href="{{ url_for('modelo_importacao_xml') }}">Somente XML</a>
+                &nbsp;·&nbsp;
+                <a href="{{ url_for('esquema_importacao_xml') }}">Somente XSD</a>
+            </span>
         </div>
-        <p class="help-text">Envie CSV, JSON ou o pacote ZIP completo de Vendas. O layout é reconhecido automaticamente.</p>
+        <p class="help-text">Envie XML validado pelo XSD, CSV, JSON ou o pacote ZIP completo de Vendas. O layout é reconhecido automaticamente.</p>
 
         <form method="post" enctype="multipart/form-data" class="upload-form" data-upload-form>
             <label class="drop-zone" for="arquivo-integracao" data-file-drop>
-                <input class="file-input" id="arquivo-integracao" type="file" name="arquivo" accept=".csv,.json,.zip" required data-file-input>
+                <input class="file-input" id="arquivo-integracao" type="file" name="arquivo" accept=".csv,.json,.xml,.zip" required data-file-input>
                 <span class="drop-icon"><i class="ti ti-file-upload"></i></span>
                 <strong>Arraste e solte o arquivo aqui</strong>
                 <span>ou clique para selecionar</span>
-                <small>Formatos aceitos: CSV, JSON ou ZIP · máximo de 10 MB</small>
+                <small>Formatos aceitos: XML, CSV, JSON ou ZIP · máximo de 10 MB</small>
                 <em data-file-name>Nenhum arquivo selecionado</em>
             </label>
             <button class="btn primary full" type="submit"><i class="ti ti-device-floppy"></i> Processar importação</button>
@@ -69,7 +75,8 @@
         <p class="help-text">Os outros sistemas podem trocar dados com o Patrimônio diretamente pela rede ou VPN.</p>
 
         <div class="endpoint-list">
-            <div><span class="http-method post">POST</span><code>/api/integracao/vendas/patrimonios</code><small>Recebe vendas</small></div>
+            <div><span class="http-method post">POST</span><code>/api/integracao/vendas/patrimonios</code><small>Recebe JSON</small></div>
+            <div><span class="http-method post">POST</span><code>/api/integracao/vendas/patrimonios.xml</code><small>Recebe XML + XSD</small></div>
             <div><span class="http-method get">GET</span><code>/api/patrimonios</code><small>Lista patrimônios</small></div>
             <div><span class="http-method get">GET</span><code>/api/integracao/rh/responsabilidades</code><small>Entrega ao RH</small></div>
         </div>
@@ -80,6 +87,7 @@
 
 <div class="export-actions">
     <a class="btn" href="{{ url_for('exportar_patrimonios_csv') }}"><i class="ti ti-file-export"></i> Exportar patrimônios</a>
+    <a class="btn" href="{{ url_for('exportar_patrimonios_xml') }}"><i class="ti ti-file-code"></i> Exportar XML</a>
     <a class="btn" href="{{ url_for('exportar_rh_colaboradores_csv') }}"><i class="ti ti-user-share"></i> Enviar ao RH</a>
     <a class="btn" href="{{ url_for('exportar_movimentacoes_csv') }}"><i class="ti ti-arrows-exchange"></i> Exportar movimentações</a>
     <a class="btn" href="{{ url_for('exportar_logs_csv') }}"><i class="ti ti-list-details"></i> Exportar logs</a>
@@ -120,7 +128,7 @@
     <div class="formats-content">
         <section>
             <h3>Vendas → Patrimônio</h3>
-            <p class="help-text">Fluxo principal. Também aceita um ZIP com clientes, vendedores, produtos, pedidos e itens.</p>
+            <p class="help-text">Fluxo principal. O XML usa o namespace <code>urn:uniavan:patrimonio:v1</code> e só é processado depois de aprovado pelo XSD. Também aceita um ZIP com clientes, vendedores, produtos, pedidos e itens.</p>
             <div class="fields-list">
                 <span><strong>venda_external_id *</strong></span><span>item_external_id</span><span><strong>produto_sku *</strong></span><span>produto_nome</span><span><strong>quantidade *</strong></span><span>valor_unitario</span><span>cliente_documento</span><span>cliente_nome</span><span>colaborador_external_id</span><span>colaborador_nome</span>
             </div>
@@ -132,14 +140,16 @@
             <div class="fields-list"><span><strong>produto_sku</strong></span><span><strong>tipo</strong></span><span><strong>quantidade</strong></span><span><strong>origem</strong></span><span>external_id</span><span>operacao</span><span>created_at</span></div>
         </section>
         <section class="format-example">
-            <h3>Exemplo JSON</h3>
-            <pre class="code-example">{
-  "venda_external_id": "VEN-2026-001",
-  "produto_sku": "SKU001",
-  "produto_nome": "Produto Exemplo",
-  "quantidade": 1,
-  "status_venda": "FATURADO"
-}</pre>
+            <h3>Hierarquia XML</h3>
+            <pre class="code-example">integracaoPatrimonio
+├── cabecalho
+└── vendas
+    └── venda
+        ├── cliente
+        ├── colaborador
+        └── itens
+            └── item
+                └── produto</pre>
         </section>
     </div>
 </details>

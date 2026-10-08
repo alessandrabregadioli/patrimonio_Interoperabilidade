@@ -176,3 +176,24 @@ floresta, superfícies quentes, divisores leves e estados semânticos.
 Para produção, separar configuração por ambiente, usar servidor WSGI, adicionar
 autenticação da API, aplicar CSRF nos formulários, migrar para PostgreSQL e
 adicionar testes automatizados permanentes.
+
+## Adaptador XML e validação por contrato
+
+A camada XML é um adaptador na fronteira da aplicação. Ela conhece o namespace
+`urn:uniavan:patrimonio:v1`, valida a instância com o XSD e converte cada item
+ao dicionário já aceito por `importar_venda_patrimonio`. A regra de domínio não
+depende de XPath, nomes de elementos ou da biblioteca XML.
+
+```text
+XML recebido
+  → parser seguro
+  → validação XSD integral
+  → adaptador XML para layout interno
+  → importar_venda_patrimonio
+  → SQLite e log de integração
+```
+
+Essa separação concentra o acoplamento sintático no adaptador. O contrato é
+forte e explícito, enquanto banco, telas e regras continuam encapsulados. O
+namespace e o arquivo XSD versionado permitem manter mais de um adaptador
+durante uma futura migração de versão.

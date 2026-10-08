@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<integracaoPatrimonio xmlns="urn:uniavan:patrimonio:v1"
+                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                      xsi:schemaLocation="urn:uniavan:patrimonio:v1 patrimonio-vendas-v1.xsd"
+                      versao="1.0">
+  <cabecalho>
+    <identificadorLote>LOTE-2026-001</identificadorLote>
+    <sistemaOrigem>VENDAS</sistemaOrigem>
+    <sistemaDestino>PATRIMONIO</sistemaDestino>
+    <dataGeracao>2026-09-16T19:00:00-03:00</dataGeracao>
+  </cabecalho>
+  <vendas>
+    <venda id="VEN-2026-001">
+      <dataVenda>2026-09-16</dataVenda>
+      <status>FATURADO</status>
+      <cliente documento="12345678901">
+        <nome>Cliente Exemplo</nome>
+      </cliente>
+      <colaborador id="COL-001">
+        <nome>Ana Souza</nome>
+      </colaborador>
+      <itens>
+        <item id="ITEM-001">
+          <produto sku="NOTE-001">
+            <nome>Notebook Corporativo</nome>
+            <descricao>Notebook destinado ao atendimento de pós-venda</descricao>
+          </produto>
+          <quantidade>2</quantidade>
+          <valorUnitario moeda="BRL">3500.00</valorUnitario>
+          <garantiaAte>2027-09-16</garantiaAte>
+        </item>
+        <item id="ITEM-002">
+          <produto sku="MON-024">
+            <nome>Monitor 24 polegadas</nome>
+          </produto>
+          <quantidade>1</quantidade>
+          <valorUnitario moeda="BRL">899.90</valorUnitario>
+          <garantiaAte>2027-09-16</garantiaAte>
+        </item>
+      </itens>
+    </venda>
+  </vendas>
+</integracaoPatrimonio>

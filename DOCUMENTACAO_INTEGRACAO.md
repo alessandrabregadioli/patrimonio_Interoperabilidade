@@ -238,3 +238,32 @@ Importar o mesmo produto novamente atualiza as unidades existentes. Importar nov
 7. Consultar `/api/integracao/rh/responsabilidades`.
 8. Exportar patrimônios e logs.
 9. Apresentar `external_id`, operação, status e colaborador responsável.
+
+## 13. Contrato XML validado por XSD
+
+O sistema aceita o contrato XML v1.0 pela tela de importação e pela rota:
+
+```text
+POST /api/integracao/vendas/patrimonios.xml
+Content-Type: application/xml
+```
+
+Arquivos oficiais:
+
+```text
+integracao_xml/modelo-vendas-patrimonio.xml
+integracao_xml/patrimonio-vendas-v1.xsd
+```
+
+O namespace é `urn:uniavan:patrimonio:v1`. O XSD define o cabeçalho do lote,
+vendas, cliente, colaborador, itens e produtos, incluindo enumerações, padrões,
+datas ISO, quantidade positiva e valores monetários. O documento inteiro é
+validado antes da primeira gravação. A saída equivalente está disponível em:
+
+```text
+GET /api/integracao/vendas/patrimonios.xml
+GET /exportacao/patrimonios.xml
+```
+
+A especificação completa, as justificativas e a análise de acoplamento estão
+em `DOCUMENTO_TECNICO_INTEGRACAO_XML.md`.

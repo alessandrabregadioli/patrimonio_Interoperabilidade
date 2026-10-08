@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Chat e arquivos - Mercado Patrimônio{% endblock %}
+
+{% block content %}
+<div class="page-header communication-header">
+    <div class="page-heading">
+        <span class="eyebrow">Socket TCP da turma</span>
+        <h1>Chat e arquivos</h1>
+        <p>Conecte o Patrimônio ao servidor, converse com outros sistemas e troque arquivos pelo protocolo da turma.</p>
+    </div>
+    <div class="socket-status" data-socket-status data-state="desconectado">
+        <span class="socket-status-dot"></span><strong data-socket-state>Desconectado</strong>
+    </div>
+</div>
+
+<section class="surface socket-connect-panel">
+    <div class="socket-connect-copy">
+        <span class="section-kicker">Conexão do cliente</span>
+        <strong>electronicsystems.com.br:5000</strong>
+        <small>O sistema se identifica no servidor com o nome escolhido abaixo.</small>
+    </div>
+    <div class="socket-connect-controls">
+        <label for="socket-name">Nome deste sistema</label>
+        <input id="socket-name" type="text" value="patrimonio" maxlength="40" autocomplete="off">
+        <button class="btn primary" type="button" data-socket-connect><i class="ti ti-plug-connected"></i> Conectar</button>
+        <button class="btn" type="button" data-socket-disconnect><i class="ti ti-plug-connected-x"></i> Desconectar</button>
+    </div>
+</section>
+
+<div class="communication-grid" data-communication
+     data-status-url="{{ url_for('api_socket_status') }}"
+     data-connect-url="{{ url_for('api_socket_conectar') }}"
+     data-disconnect-url="{{ url_for('api_socket_desconectar') }}"
+     data-message-url="{{ url_for('api_socket_mensagem') }}"
+     data-file-url="{{ url_for('api_socket_arquivo') }}"
+     data-send-rh-url="{{ url_for('api_socket_enviar_rh') }}">
+    <section class="surface chat-panel">
+        <div class="section-title">
+            <div><span class="section-kicker">Mensagens</span><h2>Conversa pelo servidor</h2></div>
+            <span class="chat-hint">Destino vazio = broadcast</span>
+        </div>
+        <div class="chat-log" data-chat-log aria-live="polite">
+            <div class="chat-empty" data-chat-empty><i class="ti ti-message-2"></i><strong>Aguardando conexão</strong><span>As mensagens do servidor aparecerão aqui.</span></div>
+        </div>
+        <form class="chat-compose" data-message-form>
+            <div class="chat-compose-fields">
+                <label class="sr-only" for="message-destination">Destinatário</label>
+                <input id="message-destination" type="text" placeholder="Destinatário (ex.: vendas) ou vazio para todos" maxlength="64" autocomplete="off">
+                <label class="sr-only" for="chat-message">Mensagem</label>
+                <textarea id="chat-message" rows="2" maxlength="4096" placeholder="Escreva uma mensagem…" required></textarea>
+            </div>
+            <button class="btn primary" type="submit"><i class="ti ti-send"></i> Enviar</button>
+        </form>
+        <p class="socket-feedback" data-socket-feedback role="status"></p>
+    </section>
+
+    <div class="communication-side">
+        <section class="surface file-send-panel">
+            <span class="section-kicker">Transferência em blocos</span>
+            <h2>Enviar arquivo</h2>
+            <p class="help-text">O arquivo é enviado em blocos de 4096 bytes, com um bloco final de tamanho zero. Limite: 10 MB.</p>
+            <form data-file-form>
+                <label for="file-destination">Destinatário</label>
+                <input id="file-destination" name="destino" type="text" value="rh" placeholder="Ex.: rh ou vendas; vazio para todos" maxlength="64" autocomplete="off">
+                <label class="file-picker" for="socket-file"><i class="ti ti-file-upload"></i><span data-picked-file>Escolher arquivo</span>
+                    <input id="socket-file" name="arquivo" type="file" required>
+                </label>
+                <button class="btn primary full" type="submit"><i class="ti ti-send"></i> Enviar arquivo</button>
+            </form>
+            <button class="btn full send-rh-button" type="button" data-send-rh><i class="ti ti-user-share"></i> Gerar e enviar arquivo do RH</button>
+            <small class="socket-muted">Envia sac_para_rh.csv diretamente ao sistema RH.</small>
+        </section>
+
+        <section class="surface received-panel">
+            <div class="section-title">
+                <div><span class="section-kicker">Caixa de entrada</span><h2>Arquivos recebidos</h2></div>
+                <span class="record-count" data-received-count>0</span>
+            </div>
+            <div class="received-files" data-received-files>
+                <div class="received-empty" data-received-empty>Nenhum arquivo recebido nesta sessão.</div>
+            </div>
+            <p class="security-note"><i class="ti ti-shield-check"></i> XML recebido só é importado depois de você solicitar a validação pelo XSD.</p>
+        </section>
+    </div>
+</div>
+{% endblock %}
